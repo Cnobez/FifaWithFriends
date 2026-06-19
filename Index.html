@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#0a2540">
+    <title>USA vs AUS Pick 'Em • WC 2026</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&amp;family=Impact:wght@400;700&display=swap');
+        
+        body { 
+            font-family: 'Roboto', system-ui, sans-serif; 
+            -webkit-overflow-scrolling: touch;
+        }
+        
+        .espn-header { background: linear-gradient(to right, #0a2540, #1e3a8a); }
+        .pitch { 
+            background: linear-gradient(#0f6b2e, #145e26); 
+            position: relative; 
+            box-shadow: inset 0 0 80px rgba(0,0,0,0.8); 
+        }
+        
+        .player-card { 
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); 
+            touch-action: manipulation;
+        }
+        .player-card:hover { transform: scale(1.08) translateY(-4px); }
+        .player-card.selected { 
+            border: 4px solid #facc15; 
+            box-shadow: 0 0 0 6px rgba(250, 204, 21, 0.3); 
+            animation: pulse 1.5s infinite; 
+        }
+        @keyframes pulse { 
+            0%, 100% { box-shadow: 0 0 0 6px rgba(250, 204, 21, 0.3); } 
+            50% { box-shadow: 0 0 0 10px rgba(250, 204, 21, 0); } 
+        }
+        
+        /* iOS Safe Area Fixes */
+        .safe-top { padding-top: env(safe-area-inset-top); }
+        .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+        
+        select {
+            -webkit-appearance: none;
+            background-image: none;
+        }
+    </style>
+</head>
+<body class="bg-zinc-950 text-white min-h-screen pb-20 safe-bottom">
+    <!-- Top Nav -->
+    <nav class="espn-header text-white py-3 px-4 flex items-center justify-between sticky top-0 z-50 border-b border-blue-800 safe-top">
+        <div class="flex items-center gap-3">
+            <i class="fa-solid fa-futbol text-3xl text-emerald-400"></i>
+            <div>
+                <div class="text-lg font-bold tracking-tighter">USA vs AUS</div>
+                <div class="text-xs text-emerald-400 -mt-1">FIFA WORLD CUP 2026 • TODAY</div>
+            </div>
+        </div>
+        <div onclick="showLeaderboard()" class="flex items-center gap-2 bg-white/10 hover:bg-white/20 px-5 py-2 rounded-full cursor-pointer transition-all active:scale-95">
+            <i class="fa-solid fa-trophy"></i>
+            <span class="text-sm font-medium">Leaderboard</span>
+        </div>
+    </nav>
+
+    <div id="main-app" class="max-w-md mx-auto">
+        <!-- Name Screen -->
+        <div id="name-screen" class="p-6">
+            <div class="text-center py-12">
+                <div class="inline-flex items-center gap-4 bg-zinc-900 p-6 rounded-3xl border border-white/10">
+                    <div class="text-6xl">🇺🇸</div>
+                    <div class="text-5xl font-black text-transparent bg-clip-text bg-gradient-to-r from-red-500 to-blue-500">VS</div>
+                    <div class="text-6xl">🇦🇺</div>
+                </div>
+                <h1 class="text-4xl font-bold mt-8 tracking-tighter">BUILD YOUR SQUAD</h1>
+                <p class="text-zinc-400 mt-3">Gamify the big one. Highest points wins.</p>
+            </div>
+            <div class="mt-8">
+                <label class="block text-sm font-medium text-zinc-400 mb-2">YOUR NAME</label>
+                <input id="player-name" type="text" 
+                       class="w-full bg-zinc-900 border border-white/20 focus:border-emerald-400 rounded-3xl px-6 py-5 text-2xl placeholder-zinc-500 focus:outline-none" 
+                       placeholder="e.g. CaptainUSA" maxlength="20">
+                <button onclick="lockName()" 
+                        class="mt-8 w-full bg-emerald-500 hover:bg-emerald-600 text-black font-bold text-xl py-6 rounded-3xl flex items-center justify-center gap-3 transition-all active:scale-95">
+                    LOCK IN & CONTINUE <i class="fa-solid fa-arrow-right"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Rules Modal -->
+        <div id="rules-modal" class="hidden fixed inset-0 bg-black/90 flex items-end z-[100]">
+            <div class="bg-zinc-900 w-full rounded-t-3xl p-8 max-h-[85vh] overflow-auto safe-bottom">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-3xl font-bold">GAME RULES</h2>
+                    <button onclick="closeRules()" class="text-4xl text-zinc-400 hover:text-white active:scale-95">×</button>
+                </div>
+                <div class="space-y-8 text-lg">
+                    <div>
+                        <div class="font-semibold text-emerald-400 mb-2">PICK 5 PLAYERS</div>
+                        <p class="text-zinc-300">Mix from USA or Australia formations.</p>
+                    </div>
+                    <div>
+                        <div class="font-semibold text-emerald-400 mb-2">POINTS SYSTEM</div>
+                        <div class="grid grid-cols-3 gap-4 text-center">
+                            <div class="bg-zinc-800 p-4 rounded-2xl"><div class="text-amber-400 text-2xl font-bold">1</div><div class="text-xs text-zinc-400">OFFENSE</div></div>
+                            <div class="bg-zinc-800 p-4 rounded-2xl"><div class="text-amber-400 text-2xl font-bold">2</div><div class="text-xs text-zinc-400">MIDFIELD</div></div>
+                            <div class="bg-zinc-800 p-4 rounded-2xl"><div class="text-amber-400 text-2xl font-bold">5</div><div class="text-xs text-zinc-400">DEFENSE</div></div>
+                        </div>
+                    </div>
+                </div>
+                <button onclick="closeRules()" class="mt-12 w-full bg-white text-black font-bold py-5 rounded-3xl text-xl active:scale-95">GOT IT — LET'S GO</button>
+            </div>
+        </div>
+
+        <!-- Player Selection -->
+        <div id="selection-screen" class="hidden">
+            <div class="flex border-b border-white/10">
+                <button onclick="switchTeam(0)" id="usa-tab" class="flex-1 py-4 text-center font-bold flex items-center justify-center gap-2 border-b-4 border-blue-500 text-white">🇺🇸 USA</button>
+                <button onclick="switchTeam(1)" id="aus-tab" class="flex-1 py-4 text-center font-bold flex items-center justify-center gap-2 text-zinc-400">🇦🇺 AUS</button>
+            </div>
+            <div id="pitch-container" class="pitch h-[520px] relative overflow-hidden mx-auto max-w-[420px]"></div>
+            <div class="p-4 bg-zinc-900 border-t border-white/10 safe-bottom">
+                <div class="flex justify-between items-center mb-4 px-2">
+                    <div class="text-sm font-medium">YOUR SQUAD <span id="selected-count" class="text-emerald-400 font-mono">0/5</span></div>
+                    <div id="selected-players-list" class="flex gap-2 text-xs flex-wrap"></div>
+                </div>
+                <button onclick="goToScorePrediction()" id="continue-btn" 
+                        class="w-full bg-emerald-500 disabled:bg-zinc-700 text-black font-bold py-6 rounded-3xl text-lg flex items-center justify-center gap-3 transition-all active:scale-95"
+                        disabled>
+                    CONTINUE TO SCORE PREDICTION →
+                </button>
+            </div>
+        </div>
+
+        <!-- Score Prediction -->
+        <div id="score-screen" class="hidden p-6">
+            <div class="text-center mb-8">
+                <h2 class="text-3xl font-bold">PREDICT THE SCORE</h2>
+                <p class="text-zinc-400">Lock in your final score</p>
+            </div>
+            <div class="flex items-center justify-center gap-8 my-12">
+                <div class="text-center">
+                    <div class="text-6xl mb-3">🇺🇸</div>
+                    <div class="text-xl font-bold">USA</div>
+                    <select id="usa-goals" class="bg-zinc-900 text-7xl font-mono text-center w-24 h-24 rounded-3xl border-2 border-blue-500 focus:outline-none focus:border-emerald-400">
+                        ${Array.from({length:11}, (_,i) => `<option value="${i}">${i}</option>`).join('')}
+                    </select>
+                </div>
+                <div class="text-6xl font-black text-zinc-500">:</div>
+                <div class="text-center">
+                    <div class="text-6xl mb-3">🇦🇺</div>
+                    <div class="text-xl font-bold">AUS</div>
+                    <select id="aus-goals" class="bg-zinc-900 text-7xl font-mono text-center w-24 h-24 rounded-3xl border-2 border-red-500 focus:outline-none focus:border-emerald-400">
+                        ${Array.from({length:11}, (_,i) => `<option value="${i}">${i}</option>`).join('')}
+                    </select>
+                </div>
+            </div>
+            <button onclick="submitPicks()" 
+                    class="w-full bg-gradient-to-r from-blue-500 to-red-500 text-white font-bold py-7 rounded-3xl text-2xl shadow-xl active:scale-95">SUBMIT PICKS</button>
+        </div>
+
+        <!-- Confirmation -->
+        <div id="confirmation-screen" class="hidden p-6">
+            <div class="text-center py-8">
+                <div class="text-emerald-400 text-6xl mb-4">✓</div>
+                <h2 class="text-4xl font-bold">PICKS LOCKED!</h2>
+                <p id="confirm-name" class="text-xl mt-2 text-zinc-400"></p>
+            </div>
+            <div class="bg-zinc-900 rounded-3xl p-6 mb-8">
+                <div class="uppercase text-xs tracking-widest text-zinc-400 mb-4">YOUR SQUAD</div>
+                <div id="confirm-players" class="space-y-4"></div>
+            </div>
+            <div class="bg-zinc-900 rounded-3xl p-6 mb-8">
+                <div class="uppercase text-xs tracking-widest text-zinc-400 mb-4">YOUR SCORE PREDICTION</div>
+                <div id="confirm-score" class="flex items-center justify-center gap-6 text-6xl font-mono"></div>
+            </div>
+            <button onclick="viewLeaderboard()" 
+                    class="w-full bg-white text-black font-bold py-6 rounded-3xl text-xl flex items-center justify-center gap-3 active:scale-95">
+                VIEW LEADERBOARD <i class="fa-solid fa-arrow-right"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- Leaderboard -->
+    <div id="leaderboard-modal" class="hidden fixed inset-0 bg-black/95 z-[200] flex flex-col safe-top safe-bottom">
+        <div class="p-6 border-b border-white/10 flex justify-between items-center">
+            <h2 class="text-3xl font-bold flex items-center gap-3"><i class="fa-solid fa-trophy text-yellow-400"></i> LEADERBOARD</h2>
+            <button onclick="hideLeaderboard()" class="text-4xl active:scale-95">×</button>
+        </div>
+        <div id="leaderboard-content" class="flex-1 overflow-auto p-6 space-y-6"></div>
+    </div>
+
+    <script>
+        // Same JS as before with minor touch improvements
+        let currentUser = "";
+        let selectedPlayers = [];
+        let currentTeam = 0;
+        let allPicks = [];
+
+        const teams = {
+            0: { name: "USA", formation: "4-2-3-1", players: [
+                {id:"freese", name:"Freese", pos:"GK", number:24, x:50, y:92, role:"defense"},
+                {id:"robinson", name:"Robinson", pos:"LB", number:5, x:15, y:68, role:"defense"},
+                {id:"ream", name:"Ream", pos:"CB", number:13, x:38, y:68, role:"defense"},
+                {id:"richards", name:"Richards", pos:"CB", number:3, x:62, y:68, role:"defense"},
+                {id:"freeman", name:"Freeman", pos:"RB", number:16, x:85, y:68, role:"defense"},
+                {id:"adams", name:"Adams", pos:"DM", number:4, x:35, y:45, role:"midfield"},
+                {id:"mckennie", name:"McKennie", pos:"CM", number:8, x:65, y:45, role:"midfield"},
+                {id:"tillman", name:"Tillman", pos:"AM", number:14, x:50, y:28, role:"offense"},
+                {id:"reyna", name:"Reyna", pos:"AM", number:7, x:25, y:22, role:"offense"},
+                {id:"pulisic", name:"Pulisic", pos:"LW", number:10, x:75, y:22, role:"offense"},
+                {id:"balogun", name:"Balogun", pos:"ST", number:9, x:50, y:8, role:"offense"}
+            ]},
+            1: { name: "AUS", formation: "5-4-1", players: [
+                {id:"beach", name:"Beach", pos:"GK", number:18, x:50, y:92, role:"defense"},
+                {id:"italiano", name:"Italiano", pos:"LB", number:23, x:15, y:68, role:"defense"},
+                {id:"burgess", name:"Burgess", pos:"CB", number:21, x:32, y:68, role:"defense"},
+                {id:"circati", name:"Circati", pos:"CB", number:3, x:50, y:68, role:"defense"},
+                {id:"souttar", name:"Souttar", pos:"CB", number:19, x:68, y:68, role:"defense"},
+                {id:"bos", name:"Bos", pos:"RB", number:6, x:85, y:68, role:"defense"},
+                {id:"metcalfe", name:"Metcalfe", pos:"CM", number:8, x:75, y:45, role:"midfield"},
+                {id:"oneill", name:"O'Neill", pos:"CM", number:22, x:55, y:45, role:"midfield"},
+                {id:"okon", name:"Okon", pos:"CM", number:13, x:35, y:45, role:"midfield"},
+                {id:"irankunda", name:"Irankunda", pos:"RW", number:17, x:80, y:25, role:"offense"},
+                {id:"toure", name:"Toure", pos:"ST", number:11, x:50, y:8, role:"offense"}
+            ]}
+        };
+
+        function lockName() {
+            const name = document.getElementById('player-name').value.trim();
+            if (!name) return alert("Enter your name!");
+            currentUser = name;
+            document.getElementById('name-screen').classList.add('hidden');
+            document.getElementById('selection-screen').classList.remove('hidden');
+            document.getElementById('confirm-name').textContent = currentUser;
+            setTimeout(() => document.getElementById('rules-modal').classList.remove('hidden'), 400);
+        }
+
+        function closeRules() {
+            document.getElementById('rules-modal').classList.add('hidden');
+            renderPitch();
+        }
+
+        function switchTeam(t) {
+            currentTeam = t;
+            document.getElementById('usa-tab').classList.toggle('border-b-4', t===0);
+            document.getElementById('usa-tab').classList.toggle('text-white', t===0);
+            document.getElementById('aus-tab').classList.toggle('border-b-4', t===1);
+            document.getElementById('aus-tab').classList.toggle('text-white', t===1);
+            renderPitch();
+        }
+
+        function renderPitch() {
+            const container = document.getElementById('pitch-container');
+            const team = teams[currentTeam];
+            let html = `<div class="absolute inset-0 bg-[radial-gradient(#ffffff15_1px,transparent_1px)] [background-size:40px_40px]"></div>`;
+            
+            team.players.forEach(p => {
+                const sel = selectedPlayers.some(s => s.id === p.id);
+                html += `
+                    <div onclick="togglePlayer('${p.id}')" class="player-card absolute cursor-pointer select-none ${sel ? 'selected' : ''}" 
+                         style="left:${p.x}%; top:${p.y}%; transform:translate(-50%,-50%)">
+                        <div class="jersey w-16 h-20 bg-gradient-to-b from-white to-zinc-300 text-black rounded-t-3xl shadow-2xl flex flex-col items-center justify-center border-2 border-white relative">
+                            <div class="absolute -top-2 text-xs font-black">${p.number}</div>
+                            <div class="text-[10px] font-bold mt-3">${p.pos}</div>
+                            <div class="text-xs font-semibold text-center mt-1 leading-none">${p.name}</div>
+                        </div>
+                        ${sel ? `<div class="absolute -top-1 -right-1 bg-emerald-400 text-black text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center ring-2 ring-white">✓</div>` : ''}
+                    </div>`;
+            });
+            
+            container.innerHTML = html;
+            updateSelectedCount();
+        }
+
+        function togglePlayer(id) {
+            const team = teams[currentTeam];
+            const player = team.players.find(p => p.id === id);
+            const idx = selectedPlayers.findIndex(p => p.id === id);
+            if (idx > -1) selectedPlayers.splice(idx, 1);
+            else if (selectedPlayers.length < 5) selectedPlayers.push({...player, team: team.name});
+            else alert("Maximum 5 players selected!");
+            renderPitch();
+        }
+
+        function updateSelectedCount() {
+            document.getElementById('selected-count').textContent = `${selectedPlayers.length}/5`;
+            const listEl = document.getElementById('selected-players-list');
+            listEl.innerHTML = selectedPlayers.map(p => `
+                <div onclick="removePlayer('${p.id}')" class="bg-zinc-800 px-3 py-1.5 rounded-2xl text-xs flex items-center gap-1 cursor-pointer active:scale-95">${p.team === 'USA' ? '🇺🇸' : '🇦🇺'} ${p.name}</div>
+            `).join('');
+            document.getElementById('continue-btn').disabled = selectedPlayers.length !== 5;
+        }
+
+        function removePlayer(id) {
+            selectedPlayers = selectedPlayers.filter(p => p.id !== id);
+            renderPitch();
+        }
+
+        function goToScorePrediction() {
+            if (selectedPlayers.length !== 5) return;
+            document.getElementById('selection-screen').classList.add('hidden');
+            document.getElementById('score-screen').classList.remove('hidden');
+        }
+
+        function submitPicks() {
+            const usaG = document.getElementById('usa-goals').value;
+            const ausG = document.getElementById('aus-goals').value;
+            const data = { 
+                user: currentUser, 
+                players: [...selectedPlayers], 
+                score: `${usaG} - ${ausG}`, 
+                timestamp: new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) 
+            };
+            allPicks.unshift(data);
+            document.getElementById('score-screen').classList.add('hidden');
+            document.getElementById('confirmation-screen').classList.remove('hidden');
+            renderConfirmation(data);
+        }
+
+        function renderConfirmation(data) {
+            document.getElementById('confirm-players').innerHTML = data.players.map(p => `
+                <div class="flex justify-between items-center bg-zinc-800 px-5 py-4 rounded-3xl">
+                    <div class="flex gap-4 items-center">
+                        <span class="text-3xl">${p.team==='USA'?'🇺🇸':'🇦🇺'}</span>
+                        <div><div class="font-semibold">${p.name}</div><div class="text-xs text-zinc-400">${p.pos} • #${p.number}</div></div>
+                    </div>
+                    <div class="text-right">
+                        <div class="text-emerald-400 font-mono text-xl">${p.role==='defense'?5:p.role==='midfield'?2:1}</div>
+                        <div class="text-[10px] text-zinc-500">PTS</div>
+                    </div>
+                </div>
+            `).join('');
+            
+            const [usa, aus] = data.score.split(' - ');
+            document.getElementById('confirm-score').innerHTML = `
+                <span class="flex items-center gap-3">🇺🇸 <span class="font-bold">${usa}</span></span>
+                <span class="text-5xl text-zinc-500">:</span>
+                <span class="flex items-center gap-3"><span class="font-bold">${aus}</span> 🇦🇺</span>
+            `;
+        }
+
+        function showLeaderboard() { 
+            document.getElementById('leaderboard-modal').classList.remove('hidden'); 
+            renderLeaderboard(); 
+        }
+        function hideLeaderboard() { document.getElementById('leaderboard-modal').classList.add('hidden'); }
+        function viewLeaderboard() { hideLeaderboard(); showLeaderboard(); }
+
+        function renderLeaderboard() {
+            const cont = document.getElementById('leaderboard-content');
+            if (!allPicks.length) {
+                cont.innerHTML = `<div class="text-center py-20 text-zinc-400"><i class="fa-solid fa-users text-6xl mb-6"></i><p>No picks yet.<br>Be the first!</p></div>`;
+                return;
+            }
+            let html = '';
+            allPicks.forEach((p,i) => {
+                html += `<div class="bg-zinc-900 border border-white/10 rounded-3xl p-5">
+                    <div class="flex justify-between items-start mb-4">
+                        <div class="flex gap-3">
+                            <div class="w-8 h-8 bg-emerald-400 text-black rounded-2xl flex items-center justify-center font-bold flex-shrink-0">${i+1}</div>
+                            <div><div class="font-semibold">${p.user}</div><div class="text-xs text-zinc-400">${p.timestamp}</div></div>
+                        </div>
+                        <div class="font-mono text-3xl">${p.score}</div>
+                    </div>
+                    <div class="flex flex-wrap gap-2">${p.players.map(pl => `<span class="text-xs bg-zinc-800 px-3 py-1 rounded-2xl">${pl.name}</span>`).join('')}</div>
+                </div>`;
+            });
+            cont.innerHTML = html;
+        }
+
+        window.onload = () => {
+            renderPitch();
+            const nameInput = document.getElementById('player-name');
+            nameInput.addEventListener('keypress', e => { if(e.key==='Enter') lockName(); });
+            
+            // Extra iOS touch friendliness
+            document.documentElement.style.setProperty('--sat', 'env(safe-area-inset-top)');
+        };
+    </script>
+</body>
+</html>
