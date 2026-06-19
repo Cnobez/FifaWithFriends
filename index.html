@@ -9,42 +9,27 @@
     <title>USA vs AUS Pick 'Em • WC 2026</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css">
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-database-compat.js"></script>
+
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&amp;family=Impact:wght@400;700&display=swap');
-        
         body { font-family: 'Roboto', system-ui, sans-serif; -webkit-overflow-scrolling: touch; }
         .espn-header { background: linear-gradient(to right, #0a2540, #1e3a8a); }
         .pitch { background: linear-gradient(#0f6b2e, #145e26); position: relative; box-shadow: inset 0 0 80px rgba(0,0,0,0.8); }
         
-        .jersey {
-            width: 68px; height: 78px;
-            border: 3px solid #111827;
-            border-radius: 12px 12px 4px 4px;
-            display: flex; align-items: center; justify-content: center;
-            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.4);
-            transition: all 0.2s;
-        }
+        .jersey { width: 68px; height: 78px; border: 3px solid #111827; border-radius: 12px 12px 4px 4px; display: flex; align-items: center; justify-content: center; box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.4); }
         .jersey.usa { background: linear-gradient(#ef4444, #b91c1c); color: white; }
         .jersey.aus { background: linear-gradient(#eab308, #ca8a04); color: #111827; }
-        
-        .jersey-number { font-size: 28px; font-weight: 900; line-height: 1; text-shadow: 0 2px 4px rgba(0,0,0,0.6); }
+        .jersey-number { font-size: 28px; font-weight: 900; }
         
         .player-card { transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1); touch-action: manipulation; }
         .player-card:hover { transform: scale(1.1) translateY(-6px); }
-        .player-card.selected .jersey { 
-            border-color: #facc15; 
-            box-shadow: 0 0 0 6px rgba(250, 204, 21, 0.4);
-            animation: pulse 1.5s infinite;
-        }
+        .player-card.selected .jersey { border-color: #facc15; box-shadow: 0 0 0 6px rgba(250, 204, 21, 0.4); animation: pulse 1.5s infinite; }
         @keyframes pulse { 0%,100% { box-shadow: 0 0 0 6px rgba(250,204,21,0.4); } 50% { box-shadow: 0 0 0 12px rgba(250,204,21,0); } }
         
-        .score-box {
-            width: 110px; height: 110px;
-            background: #18181b; border: 4px solid #3b82f6;
-            border-radius: 20px; display: flex; align-items: center; justify-content: center;
-            font-size: 4.5rem; font-weight: 900; font-family: monospace;
-            cursor: pointer; transition: all 0.2s;
-        }
+        .score-box { width: 110px; height: 110px; background: #18181b; border: 4px solid #3b82f6; border-radius: 20px; display: flex; align-items: center; justify-content: center; font-size: 4.5rem; font-weight: 900; font-family: monospace; cursor: pointer; transition: all 0.2s; }
         .score-box.aus { border-color: #ef4444; }
         .score-box:active { transform: scale(0.95); }
         
@@ -77,7 +62,7 @@
                     <div class="text-6xl">🇦🇺</div>
                 </div>
                 <h1 class="text-4xl font-bold mt-8 tracking-tighter">BUILD YOUR SQUAD</h1>
-                <p class="text-zinc-400 mt-3">Gamify the big one. Highest points wins.</p>
+                <p class="text-zinc-400 mt-3">Highest points wins.</p>
             </div>
             <div class="mt-8">
                 <label class="block text-sm font-medium text-zinc-400 mb-2">YOUR NAME</label>
@@ -96,7 +81,7 @@
                     <button onclick="closeRules()" class="text-4xl text-zinc-400 hover:text-white active:scale-95">×</button>
                 </div>
                 <div class="space-y-8 text-lg">
-                    <div><div class="font-semibold text-emerald-400 mb-2">PICK 5 PLAYERS</div><p class="text-zinc-300">Mix from USA or Australia.</p></div>
+                    <div><div class="font-semibold text-emerald-400 mb-2">PICK 5 PLAYERS</div><p class="text-zinc-300">Mix from USA or Australia formations.</p></div>
                     <div>
                         <div class="font-semibold text-emerald-400 mb-2">POINTS SYSTEM</div>
                         <div class="grid grid-cols-3 gap-4 text-center">
@@ -188,12 +173,28 @@
     </div>
 
     <script>
+        // ==================== YOUR FIREBASE CONFIG ====================
+        const firebaseConfig = {
+            apiKey: "AIzaSyDZIU-OFVunq2Ip8LqsRpSrb4A-923lB3A",
+            authDomain: "fifaprofiledata2026.firebaseapp.com",
+            databaseURL: "https://fifaprofiledata2026-default-rtdb.firebaseio.com",
+            projectId: "fifaprofiledata2026",
+            storageBucket: "fifaprofiledata2026.firebasestorage.app",
+            messagingSenderId: "489518423562",
+            appId: "1:489518423562:web:1bba4d4b8e0a5f5f83c9f3",
+            measurementId: "G-3ZPL0X47PL"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const db = firebase.database();
+        const picksRef = db.ref('picks');
+
         let currentUser = "";
         let selectedPlayers = [];
         let currentTeam = 0;
-        let allPicks = [];
         let usaGoals = 0;
         let ausGoals = 0;
+        let allPicks = [];
 
         const teams = {
             0: { name: "USA", formation: "4-2-3-1", color: "usa", players: [
@@ -224,6 +225,7 @@
             ]}
         };
 
+        // All functions (same as previous version)
         function lockName() {
             const name = document.getElementById('player-name').value.trim();
             if (!name) return alert("Enter your name!");
@@ -252,14 +254,12 @@
             const container = document.getElementById('pitch-container');
             const team = teams[currentTeam];
             let html = `<div class="absolute inset-0 bg-[radial-gradient(#ffffff15_1px,transparent_1px)] [background-size:40px_40px]"></div>`;
-            
             team.players.forEach(p => {
                 const sel = selectedPlayers.some(s => s.id === p.id);
-                const jerseyClass = team.color;
                 html += `
                     <div onclick="togglePlayer('${p.id}')" class="player-card absolute cursor-pointer select-none ${sel ? 'selected' : ''}" style="left:${p.x}%; top:${p.y}%; transform:translate(-50%,-50%)">
                         <div class="flex flex-col items-center">
-                            <div class="jersey ${jerseyClass}">
+                            <div class="jersey ${team.color}">
                                 <div class="jersey-number">${p.number}</div>
                             </div>
                             <div class="text-[10px] font-semibold text-white mt-1 text-center leading-none w-16">${p.name}</div>
@@ -309,13 +309,9 @@
                 btn.className = `w-12 h-12 rounded-2xl text-2xl font-bold flex items-center justify-center transition-all ${i === (side === 0 ? usaGoals : ausGoals) ? 'bg-emerald-500 text-black' : 'bg-zinc-800 hover:bg-zinc-700'}`;
                 btn.textContent = i;
                 btn.onclick = () => {
-                    if (side === 0) {
-                        usaGoals = i;
-                        document.getElementById('usa-score-display').textContent = usaGoals;
-                    } else {
-                        ausGoals = i;
-                        document.getElementById('aus-score-display').textContent = ausGoals;
-                    }
+                    if (side === 0) usaGoals = i; else ausGoals = i;
+                    document.getElementById('usa-score-display').textContent = usaGoals;
+                    document.getElementById('aus-score-display').textContent = ausGoals;
                     hideNumberPicker();
                 };
                 grid.appendChild(btn);
@@ -335,7 +331,7 @@
                 score: `${usaGoals} - ${ausGoals}`, 
                 timestamp: new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'}) 
             };
-            allPicks.unshift(data);
+            picksRef.push(data);
             document.getElementById('score-screen').classList.add('hidden');
             document.getElementById('confirmation-screen').classList.remove('hidden');
             renderConfirmation(data);
@@ -362,7 +358,10 @@
             `;
         }
 
-        function showLeaderboard() { document.getElementById('leaderboard-modal').classList.remove('hidden'); renderLeaderboard(); }
+        function showLeaderboard() { 
+            document.getElementById('leaderboard-modal').classList.remove('hidden'); 
+            renderLeaderboard(); 
+        }
         function hideLeaderboard() { document.getElementById('leaderboard-modal').classList.add('hidden'); }
         function viewLeaderboard() { hideLeaderboard(); showLeaderboard(); }
 
@@ -388,11 +387,22 @@
             cont.innerHTML = html;
         }
 
+        function loadLeaderboard() {
+            picksRef.on('value', (snapshot) => {
+                allPicks = [];
+                snapshot.forEach(child => allPicks.unshift(child.val()));
+                if (!document.getElementById('leaderboard-modal').classList.contains('hidden')) {
+                    renderLeaderboard();
+                }
+            });
+        }
+
         window.onload = () => {
             renderPitch();
             document.getElementById('player-name').addEventListener('keypress', e => { if(e.key==='Enter') lockName(); });
             document.getElementById('usa-score-display').textContent = usaGoals;
             document.getElementById('aus-score-display').textContent = ausGoals;
+            loadLeaderboard();
         };
     </script>
 </body>
