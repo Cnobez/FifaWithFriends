@@ -359,25 +359,40 @@
 
         // ====================== ENHANCED LEADERBOARD ======================
         function calculatePoints(pick) {
+            if (!pick || typeof pick !== 'object') return 0;
+            
             let squadPoints = 0;
-            pick.players.forEach(pl => {
-                if (pl.role === 'defense') squadPoints += 5;
-                else if (pl.role === 'midfield') squadPoints += 2;
-                else squadPoints += 1;
-            });
+            if (Array.isArray(pick.players)) {
+                pick.players.forEach(pl => {
+                    if (!pl || typeof pl !== 'object') return;
+                    if (pl.role === 'defense') squadPoints += 5;
+                    else if (pl.role === 'midfield') squadPoints += 2;
+                    else squadPoints += 1;
+                });
+            }
 
             // Score prediction bonus
-            const [usaPred, ausPred] = pick.score.split(' - ').map(Number);
             let bonus = 0;
-            if (usaPred === ausPred) bonus = (usaPred === 2 && ausPred === 1) ? 3 : 1; // exact or correct draw
-            else if (usaPred > ausPred) bonus = 1; // correct winner
+            if (typeof pick.score === 'string') {
+                const [usaPredStr, ausPredStr] = pick.score.split(' - ');
+                const usaPred = parseInt(usaPredStr, 10);
+                const ausPred = parseInt(ausPredStr, 10);
+                
+                if (!isNaN(usaPred) && !isNaN(ausPred)) {
+                    if (usaPred === ausPred) {
+                        bonus = (usaPred === 2 && ausPred === 1) ? 3 : 1; // exact or correct draw
+                    } else if (usaPred > ausPred) {
+                        bonus = 1; // correct winner
+                    }
+                }
+            }
 
             return squadPoints + bonus;
         }
 
         function renderLeaderboard() {
             const cont = document.getElementById('leaderboard-content');
-            if (!allPicks.length) {
+            if (!allPicks || allPicks.length === 0) {
                 cont.innerHTML = `<div class="text-center py-20 text-zinc-400"><i class="fa-solid fa-users text-6xl mb-6"></i><p>No picks yet.<br>Be the first to lock in!</p></div>`;
                 return;
             }
@@ -387,8 +402,16 @@
             let html = `<div class="text-emerald-400 text-xs tracking-widest mb-4 flex justify-between"><span>LIVE STANDINGS</span><span class="font-mono">${sortedPicks.length} ENTRIES</span></div>`;
             
             sortedPicks.forEach((p, i) => {
+                if (!p) return;
                 const totalPts = calculatePoints(p);
-                const [usaPred, ausPred] = p.score.split(' - ');
+                let usaPred = '–';
+                let ausPred = '–';
+                
+                if (typeof p.score === 'string') {
+                    const parts = p.score.split(' - ');
+                    usaPred = parts[0] || '–';
+                    ausPred = parts[1] || '–';
+                }
                 
                 html += `
                     <div class="bg-zinc-900 border border-white/10 rounded-3xl p-5 relative overflow-hidden">
@@ -398,8 +421,8 @@
                             <div class="flex gap-3">
                                 <div class="w-10 h-10 bg-gradient-to-br from-emerald-400 to-cyan-400 text-black rounded-2xl flex items-center justify-center font-bold text-xl flex-shrink-0 shadow-inner">${i+1}</div>
                                 <div>
-                                    <div class="font-bold text-xl">${p.user}</div>
-                                    <div class="text-xs text-zinc-400">${p.timestamp}</div>
+                                    <div class="font-bold text-xl">${p.user || 'Anonymous'}</div>
+                                    <div class="text-xs text-zinc-400">${p.timestamp || 'Just now'}</div>
                                 </div>
                             </div>
                             <div class="text-right">
@@ -419,12 +442,15 @@
                         </div>
 
                         <div class="flex flex-wrap gap-2">
-                            ${p.players.map(pl => `
-                                <span class="inline-flex items-center gap-1 text-xs bg-zinc-800 px-3 py-1 rounded-2xl">
-                                    ${pl.team === 'USA' ? '🇺🇸' : '🇦🇺'} ${pl.name}
-                                    <span class="text-emerald-400 font-mono">+${pl.role==='defense'?5:pl.role==='midfield'?2:1}</span>
-                                </span>
-                            `).join('')}
+                            ${(Array.isArray(p.players) ? p.players : []).map(pl => {
+                                if (!pl) return '';
+                                return `
+                                    <span class="inline-flex items-center gap-1 text-xs bg-zinc-800 px-3 py-1 rounded-2xl">
+                                        ${pl.team === 'USA' ? '🇺🇸' : '🇦🇺'} ${pl.name || 'Player'}
+                                        <span class="text-emerald-400 font-mono">+${pl.role==='defense'?5:pl.role==='midfield'?2:1}</span>
+                                    </span>
+                                `;
+                            }).join('')}
                         </div>
                     </div>`;
             });
@@ -442,10 +468,12 @@
         function loadLeaderboard() {
             picksRef.on('value', (snapshot) => {
                 allPicks = [];
-                snapshot.forEach(child => allPicks.unshift(child.val()));
-                if (!document.getElementById('leaderboard-modal').classList.contains('hidden')) {
-                    renderLeaderboard();
+                if (snapshot.exists()) {
+                    snapshot.forEach(child => {
+                        allPicks.unshift(child.val());
+                    });
                 }
+                renderLeaderboard(); // Always render when data updates
             });
         }
 
